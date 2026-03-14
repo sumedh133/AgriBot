@@ -367,6 +367,4 @@ Then open a Pull Request.
 
 # Notes
 
-This repository is currently focused on **development and experimentation**.
-
-Deployment and production infrastructure will be added later.
+PRD: https://docs.google.com/document/d/11DXDp9vAXH1Urvy0y095684OVI2Y3Cl-pgVKN2qtQoE/edit?usp=sharing
