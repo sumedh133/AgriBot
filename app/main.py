@@ -1,5 +1,5 @@
 import streamlit as st
-from streamlit_cookies_manager import EncryptedCookieManager
+from streamlit_cookies_manager import EncryptedCookieManager # type: ignore
 from app.database.health_check import check_database_connection
 from app.auth.jwt_handler import decode_token
 from app.ui.auth_page import show_auth_page
