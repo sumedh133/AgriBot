@@ -120,7 +120,7 @@ Large Language Model
 Google Gemini API
 
 Database
-MongoDB
+MongoDB - cloud 
 
 External APIs
 

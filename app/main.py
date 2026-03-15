@@ -1,30 +1,56 @@
 import streamlit as st
-from app.agent.agent import get_agent
+from streamlit_cookies_manager import EncryptedCookieManager # type: ignore
+from app.database.health_check import check_database_connection
+from app.auth.jwt_handler import decode_token
+from app.ui.auth_page import show_auth_page
+from app.ui.chat_page import show_chat_page
+from app.database.user_repository import UserRepository
 
 st.set_page_config(page_title="AgriAssist AI")
 
-st.title("🌾 AgriAssist AI")
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+cookies = EncryptedCookieManager(
+    prefix="AgriBot",
+    password="super_secret_cookie_key"
+)
 
-llm = get_agent()
+if not cookies.ready():
+    st.stop()
 
-user_input = st.chat_input("Ask your farming question")
 
-if user_input:
+# --------------------------------------------------
+# Restore Session From Cookie (Auto Login)
+# --------------------------------------------------
 
-    st.session_state.messages.append(
-        {"role": "user", "content": user_input}
-    )
+if "token" not in st.session_state and not st.session_state.get("logout"):
 
-    response = llm.invoke(user_input)
+    cookie_token = cookies.get("auth_token")
 
-    st.session_state.messages.append(
-        {"role": "assistant", "content": response.content}
-    )
+    # Only restore if cookie has a real token
+    if cookie_token:
 
-for msg in st.session_state.messages:
+        user_id = decode_token(cookie_token)
 
-    with st.chat_message(msg["role"]):
-        st.write(msg["content"])
+        if user_id:
+
+            repo = UserRepository()
+            user = repo.get_user_by_id(user_id)
+
+            if user:
+                st.session_state.token = cookie_token
+                st.session_state.user = user
+
+
+if "token" not in st.session_state:
+    st.session_state.token = None
+
+
+if not check_database_connection():
+    st.error("Database connection failed")
+    st.stop()
+
+
+if st.session_state.token is None:
+    show_auth_page(cookies)
+else:
+    show_chat_page(cookies)

@@ -1,10 +1,12 @@
 from pymongo import MongoClient
-from app.config import MONGODB_URI
+from app.config import MONGODB_URI,DB_NAME
 
-client = MongoClient(MONGODB_URI)
+_client = None
 
-db = client["agriassist"]
+def get_database():
+    global _client
 
-users_collection = db["users"]
-chat_collection = db["chats"]
-profile_collection = db["profiles"]
+    if _client is None:
+        _client = MongoClient(MONGODB_URI)
+
+    return _client[DB_NAME]
