@@ -19,16 +19,53 @@ def show_chat_page(cookies):
     # ---------------- STYLES ----------------
     st.markdown("""
     <style>
+    /* Button base */
     .stButton > button {
         width: 100%;
-        text-align: left;
         border-radius: 8px;
+        height: 42px;
+        padding: 0 10px;
     }
 
-    button[kind="secondary"][data-testid="baseButton-secondary"] {
-        border: 2px solid #4CAF50 !important;
-        background-color: rgba(76, 175, 80, 0.1) !important;
+    /* TARGET INNER TEXT */
+    .stButton > button div {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
     }
+
+    /* Ensure text itself behaves */
+    .stButton > button p {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        margin: 0;
+    }
+
+    /* Fix active button "shift" */
+    button[kind="secondary"] {
+        padding: 0 10px !important; /* compensate border */
+    }
+    
+    .profile-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.profile-label {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.profile-email {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    font-size: 14px;
+}
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -49,7 +86,17 @@ def show_chat_page(cookies):
         profile_col, logout_col = st.columns([5, 2])
 
         with profile_col:
-            st.write(f"Profile: {st.session_state.user['email']}")
+            st.markdown(
+                f"""
+                <div class="profile-block">
+                    <div class="profile-label">Profile</div>
+                    <div class="profile-email" title="{st.session_state.user['email']}">
+                        {st.session_state.user['email']}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
         with logout_col:
             if st.button("↩️", help="Logout"):
