@@ -229,11 +229,6 @@ agriassist-ai/
 │   │       Handles language translation logic.
 │
 │
-│   ├── advisory/
-│   │
-│   │   └── daily_advisory.py
-│   │       Generates daily farming advisories.
-│
 │
 │   ├── models/
 │   │

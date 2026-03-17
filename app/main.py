@@ -1,5 +1,5 @@
 import streamlit as st
-from streamlit_cookies_manager import EncryptedCookieManager # type: ignore
+from streamlit_cookies_manager import EncryptedCookieManager 
 from app.database.health_check import check_database_connection
 from app.auth.jwt_handler import decode_token
 from app.ui.auth_page import show_auth_page
@@ -22,12 +22,12 @@ if not cookies.ready():
 # Restore Session From Cookie (Auto Login)
 # --------------------------------------------------
 
-if "token" not in st.session_state and not st.session_state.get("logout"):
+if "token" not in st.session_state and not st.session_state.get("logout", False):
 
     cookie_token = cookies.get("auth_token")
 
     # Only restore if cookie has a real token
-    if cookie_token:
+    if cookie_token and cookie_token != "LOGGED_OUT":
 
         user_id = decode_token(cookie_token)
 
