@@ -5,6 +5,8 @@ from app.auth.jwt_handler import decode_token
 from app.ui.auth_page import show_auth_page
 from app.ui.chat_page import show_chat_page
 from app.database.user_repository import UserRepository
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 st.set_page_config(page_title="AgriAssist AI")
 
