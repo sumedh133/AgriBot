@@ -1,3 +1,5 @@
+import time
+
 import streamlit as st
 from bson import ObjectId
 
@@ -56,8 +58,9 @@ button[kind="secondary"][data-testid="baseButton-secondary"] {
 
         with logout_col:
             if st.button("↩️", help="Logout"):
-                cookies["auth_token"] = ""
+                cookies["auth_token"] = "LOGGED_OUT"
                 cookies.save()
+                time.sleep(0.5)
                 st.query_params.clear()
 
                 st.session_state.clear()
