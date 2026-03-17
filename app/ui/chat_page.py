@@ -1,62 +1,217 @@
+import time
 import streamlit as st
+from bson import ObjectId
+
 from app.agent.agent import get_agent
+from app.agent.title_generation import generate_chat_title
+
+from app.database.chat_repository import (
+    create_conversation,
+    add_message,
+    get_messages,
+    get_user_conversations,
+    update_conversation_title
+)
+
 
 def show_chat_page(cookies):
 
+    # ---------------- STYLES ----------------
+    st.markdown("""
+    <style>
+    /* Button base */
+    .stButton > button {
+        width: 100%;
+        border-radius: 8px;
+        height: 42px;
+        padding: 0 10px;
+    }
+
+    /* TARGET INNER TEXT */
+    .stButton > button div {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    /* Ensure text itself behaves */
+    .stButton > button p {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        margin: 0;
+    }
+
+    /* Fix active button "shift" */
+    button[kind="secondary"] {
+        padding: 0 10px !important; /* compensate border */
+    }
+    
+    .profile-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.profile-label {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.profile-email {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    font-size: 14px;
+}
+
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ---------------- RESTORE STATE ----------------
+    params = st.query_params
+
+    if "conversation_id" not in st.session_state:
+        if "chat" in params:
+            st.session_state.conversation_id = ObjectId(params["chat"])
+        else:
+            st.session_state.conversation_id = None
+
     st.title("🌾 AgriAssist AI")
 
-    # Sidebar
+    # ---------------- SIDEBAR ----------------
     with st.sidebar:
-        st.write(f"👤 Logged in as: {st.session_state.user['email']}")
 
-        if st.button("Logout"):
-            cookies["auth_token"] = ""
-            cookies.save()
-            st.session_state.clear()
-            st.session_state.logout = True
-            st.rerun()
+        profile_col, logout_col = st.columns([5, 2])
 
-    # Initialize chat history
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+        with profile_col:
+            st.markdown(
+                f"""
+                <div class="profile-block">
+                    <div class="profile-label">Profile</div>
+                    <div class="profile-email" title="{st.session_state.user['email']}">
+                        {st.session_state.user['email']}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
+        with logout_col:
+            if st.button("↩️", help="Logout"):
+                cookies["auth_token"] = "LOGGED_OUT"
+                cookies.save()
+                time.sleep(0.3)
+
+                st.query_params.clear()
+                st.session_state.clear()
+                st.session_state.logout = True
+                st.rerun()
+
+        st.divider()
+
+        conversations = get_user_conversations(
+            st.session_state.user["_id"]
+        )
+
+        title_col, button_col = st.columns([5, 2])
+
+        with title_col:
+            st.subheader(f"Your Chats ({len(conversations)})")
+
+        with button_col:
+            if st.button("➕", help="New Chat"):
+                st.session_state.conversation_id = None
+                st.query_params.clear()
+                st.rerun()
+
+        # -------- CHAT LIST --------
+        for convo in conversations:
+
+            title = convo.get("title", "New Chat")
+            is_active = convo["_id"] == st.session_state.conversation_id
+
+            if st.button(
+                title,
+                key=str(convo["_id"]),
+                use_container_width=True,
+                type="secondary" if is_active else "tertiary"
+            ):
+                st.session_state.conversation_id = convo["_id"]
+                st.query_params["chat"] = str(convo["_id"])
+                st.rerun()
+
+    # ---------------- LLM ----------------
     llm = get_agent()
 
-    # 1. ALWAYS DRAW HISTORY FIRST
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.write(msg["content"]) 
+    # ---------------- EMPTY STATE ----------------
+    if st.session_state.conversation_id is None:
+        st.info("Start a new conversation by asking a question.")
 
+    # ---------------- LOAD HISTORY ----------------
+    if st.session_state.conversation_id:
+
+        messages = get_messages(st.session_state.conversation_id)
+
+        for msg in messages:
+            with st.chat_message(msg["role"]):
+                st.write(msg["content"])
+
+    # ---------------- INPUT ----------------
     user_input = st.chat_input("Ask your farming question")
 
     if user_input:
-        # 2. Add user message to state and draw their chat bubble
-        st.session_state.messages.append({"role": "user", "content": user_input})
+
+        is_new_conversation = False
+
+        # -------- CREATE CONVO IF NEW --------
+        if st.session_state.conversation_id is None:
+
+            conversation_id = create_conversation(
+                st.session_state.user["_id"]
+            )
+
+            st.session_state.conversation_id = conversation_id
+            st.query_params["chat"] = str(conversation_id)
+
+            is_new_conversation = True
+
+        conversation_id = st.session_state.conversation_id
+
+        # -------- SHOW USER MESSAGE --------
         with st.chat_message("user"):
             st.write(user_input)
 
-        # 3. Draw the assistant's bubble with a loading spinner
+        # -------- SAVE USER MESSAGE --------
+        add_message(conversation_id, "user", user_input)
+
+        # -------- ASSISTANT RESPONSE --------
         with st.chat_message("assistant"):
-            with st.spinner("Fetching real-time data..."):
-                
-                # Package the input and call the agent
-                inputs = {"messages": [("user", user_input)]}
-                result = llm.invoke(inputs)
-                
-                # Get the raw content from the last message
+            with st.spinner("Thinking... 🌱"):
+
+                result = llm.invoke({"messages": [("user", user_input)]})
+
                 raw_content = result["messages"][-1].content
-                
-                # Gemini sometimes returns a list of blocks instead of a plain string
+
                 if isinstance(raw_content, list):
-                    # Extract only the "text" from those blocks
-                    final_answer = "\n".join([block["text"] for block in raw_content if isinstance(block, dict) and "text" in block])
+                    assistant_reply = "\n".join([
+                        block["text"]
+                        for block in raw_content
+                        if isinstance(block, dict) and "text" in block
+                    ])
                 else:
-                    # If it is already a normal string, just use it directly
-                    final_answer = raw_content
+                    assistant_reply = raw_content
 
-                st.write(final_answer)
+                st.write(assistant_reply)
 
-        # 4. Save the agent's correct response to the state
-        st.session_state.messages.append(
-            {"role": "assistant", "content": final_answer}
-        )
+        # -------- SAVE ASSISTANT --------
+        add_message(conversation_id, "assistant", assistant_reply)
+
+        # -------- TITLE GENERATION --------
+        if is_new_conversation:
+            title = generate_chat_title(user_input)
+            update_conversation_title(conversation_id, title)
+
+        # -------- RERUN FOR SIDEBAR UPDATE --------
+        st.rerun()

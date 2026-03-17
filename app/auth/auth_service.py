@@ -13,16 +13,16 @@ class AuthService:
         
         email_valid, error = validate_email(email)
         if not email_valid:
-            return None, error
+            return None, None, error
 
         pass_valid, error = validate_password(password)
         if not pass_valid:
-            return None, error
+            return None, None, error
 
         existing = self.user_repo.get_user_by_email(email)
 
         if existing:
-            return None, "User already exists"
+            return None, None, "User already exists"
 
         password_hash = hash_password(password)
 
@@ -38,19 +38,19 @@ class AuthService:
         
         email_valid, error = validate_email(email)
         if not email_valid:
-            return None, error
+            return None, None, error
 
         pass_valid, error = validate_password(password)
         if not pass_valid:
-            return None, error
+            return None, None, error
 
         user = self.user_repo.get_user_by_email(email)
 
         if not user:
-            return None, "Invalid credentials"
+            return None, None, "Invalid credentials"
 
         if not verify_password(password, user["password"]):
-            return None, "Invalid credentials"
+            return None, None, "Invalid credentials"
 
         token = create_token(str(user["_id"]))
 
