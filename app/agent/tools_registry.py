@@ -1,5 +1,6 @@
 from app.tools.weather_tool import get_weather
 from app.tools.search_tool import get_search_tool
+from app.tools.market_price_tool import get_market_prices
 
 def get_all_tools():
     """
@@ -8,6 +9,7 @@ def get_all_tools():
     """
     tools = [
         get_weather,
-        get_search_tool()
+        get_search_tool(),
+        get_market_prices
     ]
     return tools

@@ -2,12 +2,39 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import create_agent
 from app.config import GOOGLE_API_KEY
 from app.agent.tools_registry import get_all_tools
+from app.models.profile_model import FarmerProfile
 
-system_prompt = """
+def get_agent(profile: FarmerProfile = None, memories: list = None):
+    """Initializes and returns the modern LangChain v1 agent with personalized profile context."""
+    
+    personalized_system_prompt = """
 You are AgriAssist AI, an expert agricultural assistant designed to help farmers in India.
 
 Your goal is to provide clear, practical, and accurate farming advice that is easy to understand and actionable.
+"""
+    
+    if profile:
+        personalized_system_prompt += f"""
+---
+FARMER PROFILE (PERSONALIZATION CONTEXT)
+- Location: {profile.location}
+- Soil Type: {profile.soil_type}
+- Primary Crops: {", ".join(profile.primary_crops) if profile.primary_crops else "Not specified"}
+- Irrigation: {profile.irrigation_type}
+---
+Always tailor your advice to this farmer's specific profile when relevant.
+"""
 
+    if memories:
+        personalized_system_prompt += f"""
+---
+LONG-TERM MEMORY (What this farmer has shared in past conversations)
+{chr(10).join(f"- {m}" for m in memories)}
+---
+Use this context to provide more personalized advice without asking the farmer to repeat themselves.
+"""
+    
+    personalized_system_prompt += """
 Scope
 You specialize ONLY in agriculture-related topics, including:
 - Crops and crop selection
@@ -25,7 +52,7 @@ Example:
 
 Tool Usage Rules
 - Use tools when real-time, location-specific, or up-to-date information is required.
-- For weather-related decisions (e.g., spraying pesticides), use the weather tool.
+- For weather-related decisions (e.g., spraying pesticides, planning irrigation), use the weather tool. It provides a **5-day forecast** that you must use to answer questions about the future.
 - For crop diseases, pests, or recent outbreaks, use the search tool.
 - Do NOT use tools for basic or general knowledge questions.
 
@@ -52,9 +79,6 @@ Safety Guidelines
 Goal
 Always aim to give the most reliable, practical, and helpful farming advice tailored to real-world conditions.
 """
-
-def get_agent():
-    """Initializes and returns the modern LangChain v1 agent."""
     
     # 1. Initialize the LLM
     llm = ChatGoogleGenerativeAI(
@@ -70,7 +94,7 @@ def get_agent():
     agent = create_agent(
         model=llm,
         tools=tools,
-        system_prompt=system_prompt,
+        system_prompt=personalized_system_prompt,
     )
     
     return agent
